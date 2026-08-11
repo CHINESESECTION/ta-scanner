@@ -46,7 +46,7 @@
   </div>
 
   <div id="scanner" class="screen">
-    <video id="video" playsinline></video>
+    <video id="video" playsinline muted autoplay></video>
     <canvas id="canvas"></canvas>
     <div id="last-scan"></div>
     <div class="count" id="count">Scanned this session: 0</div>
@@ -10198,12 +10198,19 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
       scanning=true; tick();
     }
     async function initCamera(){
+      if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+        $("cam-error").style.display="block";
+        $("cam-error").innerText="Camera not available. Open this page over HTTPS (https://) and allow camera access when prompted.";
+        return;
+      }
       try {
+        video.muted=true; video.setAttribute("playsinline",""); video.playsInline=true;
         stream = await navigator.mediaDevices.getUserMedia({ video:{ facingMode:"environment" } });
-        video.srcObject=stream; await video.play();
+        video.srcObject=stream;
+        await video.play();
       } catch(e){
         $("cam-error").style.display="block";
-        $("cam-error").innerText="Camera error: "+(e&&e.message?e.message:e)+". Open via https and allow camera access.";
+        $("cam-error").innerText="Camera error: "+(e&&e.message?e.message:e)+". Allow camera access and open via https://.";
       }
     }
     function tick(){
@@ -10274,6 +10281,8 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
     loadConfig();
     window.addEventListener("online", flushPending);
     if(navigator.onLine) flushPending();
+    window.startScanning = startScanning;
+    window.stopScanning = stopScanning;
   })();
   </script>
 </body>
