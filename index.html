@@ -35,12 +35,16 @@
     <div class="card">
       <h1>Attendance Scanner</h1>
       <div class="sub">University of Ghana · Chinese Section</div>
-      <label for="ta-select">Your Name (TA)</label>
-      <select id="ta-select"><option value="">Select your name</option></select>
+      <label for="ta-index">Your index number</label>
+      <input id="ta-index" type="text" inputmode="numeric" autocomplete="off" placeholder="8-digit index e.g. 10987654" style="width:100%;padding:10px;border:1px solid #ccc;border-radius:8px;font-size:1rem;box-sizing:border-box;">
+      <label for="ta-pin">PIN</label>
+      <input id="ta-pin" type="password" autocomplete="off" placeholder="Your TA PIN" style="width:100%;padding:10px;border:1px solid #ccc;border-radius:8px;font-size:1rem;box-sizing:border-box;">
       <label for="course-select">Course Code</label>
       <select id="course-select"><option value="">Select course code</option></select>
       <button class="btn-primary" onclick="startScanning()">📷 Start Scanning</button>
-      <div id="config-status">Loading TA &amp; course list…</div>
+      <button class="btn-secondary" onclick="openMyScans()" style="width:100%;padding:10px;border:1px solid #07203f;background:#fff;color:#07203f;border-radius:8px;cursor:pointer;font-weight:600;margin-top:10px;">📊 My Scans</button>
+      <div id="login-status" style="color:#b10d15;font-size:.82rem;margin-top:8px;min-height:1em;"></div>
+      <div id="config-status">Loading course list…</div>
     </div>
     <div class="hint">Open this page over HTTPS (e.g. from GitHub Pages). Allow camera access when prompted.</div>
   </div>
@@ -51,7 +55,25 @@
     <div id="last-scan"></div>
     <div class="count" id="count">Scanned this session: 0</div>
     <div id="cam-error"></div>
-    <button class="btn-stop" onclick="stopScanning()">■ Stop &amp; Exit</button>
+    <div style="display:flex; gap:8px; margin-top:8px;">
+      <button class="btn-stop" style="flex:1" onclick="stopScanning()">■ Stop</button>
+      <button class="btn-stop" style="flex:1" onclick="openMyScans()">📊 My Scans</button>
+    </div>
+  </div>
+
+  <div id="myscans" class="screen" style="display:none; flex-direction:column; padding:16px; overflow:auto;">
+    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;">
+      <button class="btn-stop" onclick="stopScanning()" style="padding:8px 12px;">← Back</button>
+      <button class="btn-stop" onclick="logout()" style="padding:8px 12px;">Logout</button>
+    </div>
+    <h1 style="font-size:1.1rem; margin:0 0 4px; color:#07203f;">My Scans</h1>
+    <div id="ms-head" style="font-size:.85rem; color:#667; margin-bottom:12px;"></div>
+    <div style="display:flex; gap:8px; margin-bottom:12px;">
+      <select id="ms-course" onchange="loadMyScans()" style="flex:1; padding:8px; border:1px solid #ccc; border-radius:8px;"></select>
+      <input id="ms-date" type="date" onchange="loadMyScans()" style="padding:8px; border:1px solid #ccc; border-radius:8px;">
+    </div>
+    <div id="ms-body"></div>
+    <button class="btn-secondary" onclick="exportMyScans()" style="width:100%; padding:10px; border:1px solid #07203f; background:#fff; color:#07203f; border-radius:8px; cursor:pointer; font-weight:600; margin-top:14px;">⬇ Export CSV</button>
   </div>
 
   <div id="flash"></div>
@@ -10164,7 +10186,9 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
   (function(){
     var SCAN_CONFIG = { firebaseUrl:"https://ta-scanner-4c48e-default-rtdb.firebaseio.com/", secret:"UgScan-9Xk2QpL7mN4vR8tB" };
     var fbBase = SCAN_CONFIG.firebaseUrl.replace(/\/$/,"");
-    var tas=[], courses=[], selectedTa="", selectedCourse="";
+    var ATT_BASE = "https://stu-attend-default-rtdb.firebaseio.com";
+    var ATT_SECRET = "StuPort-7Hk3QmN9vR2tB8xL";
+    var tas=[], courses=[], config={}, selectedTa="", selectedTaIndex="", selectedCourse="", activeYear="";
     var video=document.getElementById("video"), canvas=document.getElementById("canvas"), ctx=canvas.getContext("2d");
     var scanning=false, stream=null, scanCount=0;
     var lastScan={}, pending=[];
@@ -10176,24 +10200,58 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
       var d=String(txt).replace(/\D/g,""); return d.length>=8? d.slice(-8): d;
     }
     function fillSelect(id, arr, placeholder){
-      var sel=$(id); sel.innerHTML='<option value="">'+placeholder+'</option>';
+      var sel=$(id); if(!sel) return; sel.innerHTML='<option value="">'+placeholder+'</option>';
       arr.forEach(function(v){ var o=document.createElement("option"); o.value=v; o.text=v; sel.appendChild(o); });
     }
-    async function loadConfig(){
+    function cleanCode(c){ return String(c||"").replace(/\s+/g,"").toUpperCase(); }
+    function fbGetJson(base, secret, path){
+      return fetch(base+path+".json?auth="+encodeURIComponent(secret))
+        .then(function(r){ return r && r.ok ? r.json() : null; })
+        .catch(function(){ return null; });
+    }
+    function normArr(data){
+      if(!data) return [];
+      if(Array.isArray(data)) return data;
+      return Object.keys(data).map(function(k){ return data[k]; });
+    }
+    function restoreSession(){
       try {
-        var r=await fetch(fbBase+"/config.json"); var c=await r.json();
-        if(c){ if(c.tas) tas=c.tas; if(c.courses) courses=c.courses; }
+        var s = JSON.parse(localStorage.getItem("taSession")||"null");
+        if(s && s.index && s.year === activeYear){ selectedTa=s.name; selectedTaIndex=s.index; }
       } catch(e){}
-      fillSelect("ta-select", tas, "Select your name");
+    }
+    function saveSession(){ try{ localStorage.setItem("taSession", JSON.stringify({index:selectedTaIndex, name:selectedTa, year:activeYear})); }catch(e){} }
+    function clearSession(){ try{ localStorage.removeItem("taSession"); }catch(e){} selectedTa=""; selectedTaIndex=""; }
+    async function loadConfig(){
+      config = await fbGetJson(fbBase, SCAN_CONFIG.secret, "/config") || {};
+      tas = Array.isArray(config.tas) ? config.tas : [];
+      courses = Array.isArray(config.courses) ? config.courses : [];
+      activeYear = config.activeYear || config.year || "";
       fillSelect("course-select", courses, "Select course code");
-      var msg = (tas.length? tas.length+" TAs" : "no TAs") + " · " + (courses.length? courses.length+" courses":"no courses");
-      if(!(tas.length&&courses.length)) msg += " — ask the teacher to add them in System Menu > TA & Course Setup";
-      $("config-status").innerText = msg;
+      restoreSession();
+      var msg = (courses.length? courses.length+" courses":"no courses") + (activeYear? " · year "+activeYear : "");
+      if(!courses.length) msg += " — ask the teacher to add them in System Menu > TA & Course Setup";
+      if($("config-status")) $("config-status").innerText = msg;
+    }
+    async function login(){
+      var idx = ($("ta-index").value||"").replace(/\D/g,"").trim();
+      var pin = ($("ta-pin").value||"").trim();
+      if($("login-status")) $("login-status").innerText="";
+      if(!idx || !pin){ if($("login-status")) $("login-status").innerText="Enter your index number and PIN."; return false; }
+      if(!activeYear){ if($("login-status")) $("login-status").innerText="No active year set by the teacher yet."; return false; }
+      var ta = tas.find(function(t){ return String(t.index)===idx && String(t.pin)===pin && (t.active===undefined||t.active!==false); });
+      if(!ta){ if($("login-status")) $("login-status").innerText="Index or PIN not recognised for "+activeYear+"."; return false; }
+      if(ta.year !== activeYear){ if($("login-status")) $("login-status").innerText="Your TA access is for "+ta.year+", not the active year "+activeYear+"."; return false; }
+      selectedTa=ta.name; selectedTaIndex=ta.index; saveSession();
+      if($("login-status")) $("login-status").innerText="Welcome, "+ta.name+" ("+activeYear+")";
+      return true;
     }
     async function startScanning(){
-      selectedTa=$("ta-select").value; selectedCourse=$("course-select").value;
-      if(!selectedTa||!selectedCourse){ alert("Please select your name and course first."); return; }
-      $("setup").style.display="none"; $("scanner").style.display="flex";
+      if(!selectedTaIndex){ if(!(await login())) return; }
+      selectedCourse=$("course-select").value;
+      if(!selectedCourse){ alert("Please select your course first."); return; }
+      if($("setup")) $("setup").style.display="none";
+      if($("scanner")) $("scanner").style.display="flex";
       await initCamera();
       scanning=true; tick();
     }
@@ -10232,7 +10290,7 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
       beep(); flash(); scanCount++;
       $("last-scan").innerHTML="✅ Scanned <strong>"+id+"</strong>";
       $("count").innerText="Scanned this session: "+scanCount;
-      var rec={ studentId:id, ta:selectedTa, course:selectedCourse, ts:now, secret:SCAN_CONFIG.secret };
+      var rec={ studentId:id, ta:selectedTa, taIndex:selectedTaIndex, course:selectedCourse, ts:now, year:activeYear, secret:SCAN_CONFIG.secret };
       sendScan(rec);
     }
     async function sendScan(rec){
@@ -10277,6 +10335,101 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
       if(stream){ stream.getTracks().forEach(function(t){ t.stop(); }); }
       $("scanner").style.display="none"; $("setup").style.display="flex";
     }
+
+    // ---------- My Scans (year-scoped, full class attendance) ----------
+    async function openMyScans(){
+      if(!selectedTaIndex){ if(!(await login())){ if($("setup")) $("setup").style.display="flex"; return; } }
+      if($("setup")) $("setup").style.display="none";
+      if($("scanner")) $("scanner").style.display="none";
+      if($("myscans")) $("myscans").style.display="flex";
+      renderMyScans();
+    }
+    async function renderMyScans(){
+      var ta = tas.find(function(t){ return String(t.index)===String(selectedTaIndex); }) || {};
+      var list = (Array.isArray(ta.courses)&&ta.courses.length)? ta.courses : courses;
+      fillSelect("ms-course", list, "All my courses");
+      var d=$("ms-date"); if(d && !d.value) d.value = new Date().toISOString().slice(0,10);
+      var head=$("ms-head"); if(head) head.innerText = selectedTa + " · " + (activeYear||"");
+      loadMyScans();
+    }
+    async function getRoster(course){
+      if(config.rosters && config.rosters[course] && config.rosters[course].length) return config.rosters[course];
+      var cat = await fbGetJson(ATT_BASE, ATT_SECRET, "/catalog");
+      var node = (cat && cat.c) ? cat.c : cat;
+      if(!node) return [];
+      var raw = node[course] || node[cleanCode(course)] || [];
+      return (raw||[]).map(function(x){
+        var s = (x && typeof x==="object") ? (x.index||x.id||"") : x;
+        return String(s).replace(/\D/g,"").slice(-8);
+      }).filter(Boolean);
+    }
+    function statusOf(m){ if(!m) return "Absent"; if(m.late) return "Late"; return "Present"; }
+    async function loadMyScans(){
+      var box=$("ms-body"); if(box) box.innerHTML='<div style="padding:20px;color:#667;">Loading…</div>';
+      var course=$("ms-course")? $("ms-course").value : "";
+      var date=$("ms-date")? $("ms-date").value : "";
+      var dayStart = date ? new Date(date+"T00:00:00").getTime() : 0;
+      var dayEnd = dayStart ? dayStart+86400000 : Date.now();
+      var all = normArr(await fbGetJson(fbBase, SCAN_CONFIG.secret, "/scans"));
+      var scans = all.filter(function(m){
+        return m && m.year===activeYear && (!course || cleanCode(m.course)===cleanCode(course)) && m.ts>=dayStart && m.ts<dayEnd;
+      });
+      var scanned={}; scans.forEach(function(m){ scanned[m.studentId]=m; });
+      var roster = course ? await getRoster(course) : [];
+      var present=0, late=0, absent=0;
+      roster.forEach(function(id){ var m=scanned[id]; if(!m){ absent++; } else if(m.late){ late++; } else { present++; } });
+      var pct = roster.length ? Math.round((present/roster.length)*100) : 0;
+      var html="";
+      html += '<div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;">'
+            + '<div style="flex:1;min-width:90px;background:#eef3f8;border-radius:10px;padding:10px;"><div style="font-size:.78rem;color:#667;">Present</div><div style="font-size:1.4rem;font-weight:600;color:#0a7d2b;">'+present+'</div></div>'
+            + '<div style="flex:1;min-width:90px;background:#eef3f8;border-radius:10px;padding:10px;"><div style="font-size:.78rem;color:#667;">Late</div><div style="font-size:1.4rem;font-weight:600;color:#b8860b;">'+late+'</div></div>'
+            + '<div style="flex:1;min-width:90px;background:#eef3f8;border-radius:10px;padding:10px;"><div style="font-size:.78rem;color:#667;">Absent</div><div style="font-size:1.4rem;font-weight:600;color:#b10d15;">'+absent+'</div></div>'
+            + '<div style="flex:1;min-width:90px;background:#eef3f8;border-radius:10px;padding:10px;"><div style="font-size:.78rem;color:#667;">Rate</div><div style="font-size:1.4rem;font-weight:600;color:#07203f;">'+pct+'%</div></div>'
+            + '</div>';
+      if(course && roster.length){
+        html += '<div style="font-weight:600;color:#07203f;margin:6px 0 8px;">Class attendance — '+course+'</div>';
+        html += '<div style="border:1px solid #e3e3e3;border-radius:10px;overflow:hidden;">';
+        roster.forEach(function(id){
+          var m=scanned[id]; var st=statusOf(m); var col = st==="Present"?"#0a7d2b":(st==="Late"?"#b8860b":"#b10d15");
+          html += '<div style="display:flex;justify-content:space-between;padding:8px 12px;border-bottom:1px solid #f0f0f0;font-size:.86rem;"><span>'+id+'</span><span style="color:'+col+';font-weight:600;">'+st+'</span></div>';
+        });
+        html += '</div>';
+      } else if(course && !roster.length){
+        html += '<div style="color:#b10d15;font-size:.85rem;padding:8px 0;">No roster found for '+course+'. Add students in the teacher system or set rosters in TA setup.</div>';
+      }
+      var mine = scans.slice().sort(function(a,b){ return (b.ts||0)-(a.ts||0); }).slice(0,30);
+      html += '<div style="font-weight:600;color:#07203f;margin:16px 0 8px;">My scans this day ('+mine.length+')</div>';
+      if(!mine.length){ html += '<div style="color:#667;font-size:.85rem;">No scans logged yet for this day.</div>'; }
+      else {
+        html += '<div style="border:1px solid #e3e3e3;border-radius:10px;overflow:hidden;">';
+        mine.forEach(function(m){
+          var tt = new Date(m.ts); var tstr = (tt.getHours()+"").padStart(2,"0")+":"+(tt.getMinutes()+"").padStart(2,"0");
+          html += '<div style="display:flex;justify-content:space-between;padding:7px 12px;border-bottom:1px solid #f0f0f0;font-size:.84rem;"><span>'+m.studentId+' <span style="color:#99a;">'+m.course+'</span></span><span style="color:#667;">'+tstr+'</span></div>';
+        });
+        html += '</div>';
+      }
+      if(box) box.innerHTML=html;
+    }
+    function exportMyScans(){
+      var course=$("ms-course")? $("ms-course").value : "";
+      var date=$("ms-date")? $("ms-date").value : "";
+      var dayStart = date ? new Date(date+"T00:00:00").getTime() : 0;
+      var dayEnd = dayStart ? dayStart+86400000 : Date.now();
+      fbGetJson(fbBase, SCAN_CONFIG.secret, "/scans").then(function(all){
+        var scans = normArr(all).filter(function(m){ return m && m.year===activeYear && (!course || cleanCode(m.course)===cleanCode(course)) && m.ts>=dayStart && m.ts<dayEnd; });
+        var scanned={}; scans.forEach(function(m){ scanned[m.studentId]=m; });
+        var roster = course ? (config.rosters && config.rosters[course] ? config.rosters[course] : []) : [];
+        var lines = ["StudentID,Status,Course,Time"];
+        (roster.length?roster:scans.map(function(m){return m.studentId;})).forEach(function(id){
+          var m=scanned[id]; lines.push(id+","+(m?(m.late?"Late":"Present"):"Absent")+","+(m?m.course:"")+","+(m?new Date(m.ts).toLocaleString():"")+",");
+        });
+        var blob=new Blob([lines.join("\n")],{type:"text/csv"}); var url=URL.createObjectURL(blob);
+        var a=document.createElement("a"); a.href=url; a.download="attendance_"+(course||"all")+"_"+date+".csv"; a.click();
+        setTimeout(function(){ URL.revokeObjectURL(url); }, 1000);
+      });
+    }
+    function logout(){ clearSession(); if($("setup")) $("setup").style.display="flex"; if($("myscans")) $("myscans").style.display="none"; if($("ta-index")) $("ta-index").value=""; if($("ta-pin")) $("ta-pin").value=""; if($("login-status")) $("login-status").innerText=""; }
+
     loadPending();
     loadConfig();
     window.addEventListener("online", flushPending);
