@@ -6,74 +6,272 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>UG Attendance — TA Scanner</title>
 <style>
-  :root{ --ug-blue:#003262; --ug-gold:#f2a900; }
-  *{ box-sizing:border-box; }
-  html,body{ margin:0; padding:0; min-height:100%; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; background:var(--ug-blue); color:#fff; }
-  .screen{ min-height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:20px; }
-  .card{ background:#fff; color:#1a1a1a; border-radius:16px; padding:24px; width:100%; max-width:440px; box-shadow:0 20px 60px rgba(0,0,0,.3); }
-  h1{ color:var(--ug-blue); font-size:1.4rem; margin:0 0 4px; text-align:center; }
-  .sub{ text-align:center; color:#666; font-size:.85rem; margin-bottom:18px; }
-  label{ display:block; font-weight:bold; color:var(--ug-blue); margin:14px 0 6px; }
-  select, button{ width:100%; padding:14px; font-size:1rem; border-radius:10px; border:1px solid #ccc; }
-  select{ background:#fff; }
-  .btn-primary{ background:var(--ug-blue); color:#fff; border:none; font-weight:bold; margin-top:20px; }
-  .btn-primary:active{ background:#002347; }
-  .btn-stop{ background:#b10d15; color:#fff; border:none; font-weight:bold; margin-top:16px; }
-  #config-status{ font-size:.8rem; color:#666; text-align:center; margin-top:12px; min-height:1em; }
-  #scanner{ display:none; }
-  #video{ width:100%; max-width:560px; border-radius:12px; background:#000; aspect-ratio:4/3; object-fit:cover; }
+  :root{
+    --ug-blue:#003262; --ug-blue-d:#002347; --ug-gold:#f2a900; --ug-gold-d:#c98a00;
+    --ink:#1a2230; --muted:#6b7280; --line:#e6e9ef; --bg:#f4f6fb; --card:#ffffff;
+    --green:#0a7d2b; --amber:#b8860b; --red:#b10d15;
+  }
+  *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body{ margin:0; padding:0; min-height:100%; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; background:var(--bg); color:var(--ink); }
+  button{ font-family:inherit; cursor:pointer; }
+  input,select{ font-family:inherit; }
+
+  /* ---------- Login screen ---------- */
+  .login-screen{ min-height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:22px;
+    background:linear-gradient(160deg,#0a2a52 0%,#003262 55%,#0b3a73 100%); color:#fff; }
+  .login-card{ background:#fff; color:var(--ink); border-radius:22px; padding:22px; width:100%; max-width:420px; box-shadow:0 24px 60px rgba(0,0,0,.35); }
+  .brand{ text-align:center; margin-bottom:6px; }
+  .brand .cap{ width:64px; height:64px; border-radius:16px; background:linear-gradient(145deg,var(--ug-gold),var(--ug-gold-d));
+    display:inline-flex; align-items:center; justify-content:center; font-size:30px; box-shadow:0 8px 20px rgba(242,169,0,.35); }
+  .brand h1{ color:var(--ug-blue); font-size:1.35rem; margin:10px 0 2px; }
+  .brand .sub{ color:var(--muted); font-size:.82rem; margin:0; }
+  .login-h{ font-size:.92rem; font-weight:700; color:var(--ug-blue); margin:18px 0 8px; }
+  .ta-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(120px,1fr)); gap:10px; }
+  .ta-chip{ border:1.5px solid var(--line); background:#fafbff; border-radius:14px; padding:12px 10px; text-align:center; transition:.15s; }
+  .ta-chip .av{ width:38px; height:38px; border-radius:50%; background:linear-gradient(145deg,var(--ug-blue),#0b3a73); color:#fff;
+    display:inline-flex; align-items:center; justify-content:center; font-weight:700; font-size:.95rem; margin-bottom:6px; }
+  .ta-chip .nm{ font-size:.82rem; font-weight:600; line-height:1.1; }
+  .ta-chip.sel{ border-color:var(--ug-gold); background:#fff8e8; box-shadow:0 0 0 3px rgba(242,169,0,.18); }
+  .pin-wrap{ margin-top:14px; display:none; }
+  .pin-wrap.show{ display:block; animation:fade .25s ease; }
+  @keyframes fade{ from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:none;} }
+  .field{ width:100%; padding:13px 14px; font-size:1rem; border-radius:12px; border:1px solid #cfd6e4; background:#fff; color:var(--ink); }
+  .field:focus{ outline:none; border-color:var(--ug-gold); box-shadow:0 0 0 3px rgba(242,169,0,.15); }
+  .btn{ width:100%; padding:14px; font-size:1rem; border-radius:12px; border:none; font-weight:700; }
+  .btn-gold{ background:linear-gradient(145deg,var(--ug-gold),var(--ug-gold-d)); color:#3a2a00; }
+  .btn-gold:active{ filter:brightness(.95); }
+  .btn-blue{ background:var(--ug-blue); color:#fff; }
+  .btn-blue:active{ background:var(--ug-blue-d); }
+  .btn-ghost{ background:#eef2f8; color:var(--ug-blue); }
+  .btn-danger{ background:#ffe9ea; color:var(--red); }
+  .row{ display:flex; gap:10px; }
+  .muted{ color:var(--muted); }
+  .center{ text-align:center; }
+  #login-status{ color:var(--red); font-size:.82rem; margin-top:8px; min-height:1em; text-align:center; }
+  #config-status{ color:#cdd; font-size:.78rem; margin-top:12px; text-align:center; min-height:1em; }
+
+  /* ---------- App shell ---------- */
+  #app{ display:none; min-height:100vh; flex-direction:column; background:var(--bg); }
+  .app-header{ background:linear-gradient(135deg,#003262,#0b3a73); color:#fff; padding:16px 18px 14px; position:sticky; top:0; z-index:5; }
+  .app-header .top{ display:flex; align-items:center; gap:12px; }
+  .app-header .av{ width:44px; height:44px; border-radius:50%; background:linear-gradient(145deg,var(--ug-gold),var(--ug-gold-d));
+    color:#3a2a00; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:1.05rem; }
+  .app-header .who{ flex:1; min-width:0; }
+  .app-header .who .hi{ font-size:.78rem; opacity:.85; }
+  .app-header .who .nm{ font-size:1.08rem; font-weight:800; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .app-header .sync{ font-size:.7rem; background:rgba(255,255,255,.14); padding:5px 9px; border-radius:20px; white-space:nowrap; }
+  .app-header .sync .dot{ display:inline-block; width:7px; height:7px; border-radius:50%; background:#7CFC9B; margin-right:5px; vertical-align:middle; }
+
+  .view{ flex:1; padding:16px 16px 90px; max-width:760px; width:100%; margin:0 auto; }
+  .view h2{ color:var(--ug-blue); font-size:1.15rem; margin:4px 0 14px; }
+  .view h3{ color:var(--ug-blue); font-size:.98rem; margin:18px 0 8px; }
+
+  .stat-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(120px,1fr)); gap:10px; }
+  .stat{ background:var(--card); border:1px solid var(--line); border-radius:14px; padding:12px 14px; box-shadow:0 2px 8px rgba(16,30,54,.04); }
+  .stat .k{ font-size:.72rem; color:var(--muted); }
+  .stat .v{ font-size:1.5rem; font-weight:800; color:var(--ug-blue); line-height:1.1; }
+  .stat.g .v{ color:var(--green); } .stat.a .v{ color:var(--amber); } .stat.r .v{ color:var(--red); }
+
+  .shortcuts{ display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:10px; margin-top:6px; }
+  .sc{ background:var(--card); border:1px solid var(--line); border-radius:14px; padding:14px; text-align:center; box-shadow:0 2px 8px rgba(16,30,54,.04); }
+  .sc .ic{ font-size:1.6rem; } .sc .lb{ font-size:.8rem; font-weight:600; margin-top:4px; color:var(--ink); }
+
+  .panel{ background:var(--card); border:1px solid var(--line); border-radius:14px; padding:14px; box-shadow:0 2px 8px rgba(16,30,54,.04); margin-bottom:12px; }
+  .pill{ display:inline-block; font-size:.72rem; font-weight:700; padding:3px 9px; border-radius:20px; }
+  .pill.g{ background:#e7f6ec; color:var(--green); } .pill.a{ background:#fdf3df; color:var(--amber); }
+  .pill.r{ background:#fdeaea; color:var(--red); } .pill.b{ background:#e7eefb; color:var(--ug-blue); }
+
+  .list{ background:var(--card); border:1px solid var(--line); border-radius:14px; overflow:hidden; box-shadow:0 2px 8px rgba(16,30,54,.04); }
+  .list .it{ display:flex; align-items:center; gap:10px; padding:12px 14px; border-bottom:1px solid var(--line); }
+  .list .it:last-child{ border-bottom:none; }
+  .list .it .ic{ width:36px; height:36px; border-radius:10px; background:#eef2f8; display:flex; align-items:center; justify-content:center; font-size:1.1rem; flex:none; }
+  .list .it .tx{ flex:1; min-width:0; }
+  .list .it .tx .t{ font-weight:600; font-size:.9rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .list .it .tx .s{ font-size:.76rem; color:var(--muted); }
+  .list .it .ar{ color:#aab; }
+
+  .search{ width:100%; padding:12px 14px; font-size:.95rem; border-radius:12px; border:1px solid #cfd6e4; background:#fff; margin-bottom:10px; }
+  .search:focus{ outline:none; border-color:var(--ug-gold); box-shadow:0 0 0 3px rgba(242,169,0,.15); }
+
+  /* scanner */
+  #video{ width:100%; max-width:560px; border-radius:14px; background:#000; aspect-ratio:4/3; object-fit:cover; display:block; margin:0 auto; }
   #canvas{ display:none; }
-  #last-scan{ margin-top:16px; text-align:center; font-size:1.05rem; font-weight:bold; color:var(--ug-blue); min-height:1.4em; }
-  #cam-error{ display:none; background:#fff3f3; color:#b10d15; border:1px solid #ffcdd2; border-radius:10px; padding:12px; margin-top:14px; font-size:.85rem; }
-  #flash{ position:fixed; inset:0; background:rgba(40,167,69,.35); opacity:0; transition:opacity .15s; pointer-events:none; }
-  .hint{ font-size:.78rem; color:#cdd; text-align:center; margin-top:14px; }
-  .count{ font-size:.8rem; color:var(--ug-gold); text-align:center; margin-top:6px; }
+  #last-scan{ margin-top:14px; text-align:center; font-size:1.05rem; font-weight:700; color:var(--ug-blue); min-height:1.4em; }
+  #cam-error{ display:none; background:#fff3f3; color:var(--red); border:1px solid #ffcdd2; border-radius:10px; padding:12px; margin-top:12px; font-size:.85rem; }
+  .count{ font-size:.8rem; color:var(--ug-gold); text-align:center; margin-top:8px; font-weight:600; }
+  .scan-actions{ display:flex; gap:10px; margin-top:14px; }
+
+  /* table */
+  .tbl-wrap{ width:100%; overflow-x:auto; border:1px solid var(--line); border-radius:12px; background:#fff; }
+  table.tbl{ width:100%; border-collapse:collapse; font-size:.86rem; }
+  table.tbl th{ text-align:left; padding:10px 12px; background:#f3f6fb; color:var(--ug-blue); font-weight:700; font-size:.78rem; position:sticky; top:0; }
+  table.tbl td{ padding:9px 12px; border-top:1px solid var(--line); }
+  table.tbl tr:first-child td{ border-top:none; }
+
+  /* tab bar */
+  .tabbar{ position:fixed; left:0; right:0; bottom:0; background:#fff; border-top:1px solid var(--line);
+    display:flex; justify-content:space-around; padding:6px 4px calc(6px + env(safe-area-inset-bottom)); box-shadow:0 -4px 16px rgba(16,30,54,.08); z-index:10; }
+  .tab{ flex:1; background:none; border:none; padding:6px 2px; color:var(--muted); font-size:.66rem; font-weight:600; display:flex; flex-direction:column; align-items:center; gap:2px; }
+  .tab .ti{ font-size:1.25rem; line-height:1; }
+  .tab.active{ color:var(--ug-blue); }
+  .tab.active .ti{ transform:translateY(-1px); }
+
+  #flash{ position:fixed; inset:0; background:rgba(40,167,69,.35); opacity:0; transition:opacity .15s; pointer-events:none; z-index:50; }
+  .hint{ font-size:.76rem; color:#9aa6b8; text-align:center; margin-top:14px; }
+  .hidden{ display:none !important; }
+  @media (max-width:380px){ .ta-grid{ grid-template-columns:repeat(auto-fill,minmax(100px,1fr)); } }
 </style>
 </head>
 <body>
-  <div id="setup" class="screen">
-    <div class="card">
-      <h1>Attendance Scanner</h1>
-      <div class="sub">University of Ghana · Chinese Section</div>
-      <label for="ta-index">Your index number</label>
-      <input id="ta-index" type="text" inputmode="numeric" autocomplete="off" placeholder="8-digit index e.g. 10987654" style="width:100%;padding:10px;border:1px solid #ccc;border-radius:8px;font-size:1rem;box-sizing:border-box;">
-      <label for="ta-pin">PIN</label>
-      <input id="ta-pin" type="password" autocomplete="off" placeholder="Your TA PIN" style="width:100%;padding:10px;border:1px solid #ccc;border-radius:8px;font-size:1rem;box-sizing:border-box;">
-      <label for="course-select">Course Code</label>
-      <select id="course-select"><option value="">Select course code</option></select>
-      <button class="btn-primary" onclick="startScanning()">📷 Start Scanning</button>
-      <button class="btn-secondary" onclick="openMyScans()" style="width:100%;padding:10px;border:1px solid #07203f;background:#fff;color:#07203f;border-radius:8px;cursor:pointer;font-weight:600;margin-top:10px;">📊 My Scans</button>
-      <div id="login-status" style="color:#b10d15;font-size:.82rem;margin-top:8px;min-height:1em;"></div>
-      <div id="config-status">Loading course list…</div>
-    </div>
-    <div class="hint">Open this page over HTTPS (e.g. from GitHub Pages). Allow camera access when prompted.</div>
-  </div>
-
-  <div id="scanner" class="screen">
-    <video id="video" playsinline muted autoplay></video>
-    <canvas id="canvas"></canvas>
-    <div id="last-scan"></div>
-    <div class="count" id="count">Scanned this session: 0</div>
-    <div id="cam-error"></div>
-    <div style="display:flex; gap:8px; margin-top:8px;">
-      <button class="btn-stop" style="flex:1" onclick="stopScanning()">■ Stop</button>
-      <button class="btn-stop" style="flex:1" onclick="openMyScans()">📊 My Scans</button>
+  <!-- LOGIN -->
+  <div id="setup" class="login-screen">
+    <div class="login-card">
+      <div class="brand">
+        <div class="cap">🎓</div>
+        <h1>Attendance Scanner</h1>
+        <p class="sub">University of Ghana · Chinese Section</p>
+      </div>
+      <div class="login-h">Select your name</div>
+      <div id="ta-list" class="ta-grid"></div>
+      <div id="pin-wrap" class="pin-wrap">
+        <input id="ta-pin" class="field" type="password" inputmode="numeric" autocomplete="off" placeholder="Enter your PIN">
+        <div id="login-status"></div>
+        <button class="btn btn-gold" id="enter-btn" style="margin-top:12px;">Enter</button>
+        <button class="btn btn-ghost" id="switch-btn" style="margin-top:8px;">Choose a different name</button>
+      </div>
+      <div id="config-status">Loading…</div>
+      <div class="hint">Open over HTTPS and allow camera access when prompted.</div>
     </div>
   </div>
 
-  <div id="myscans" class="screen" style="display:none; flex-direction:column; padding:16px; overflow:auto;">
-    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;">
-      <button class="btn-stop" onclick="stopScanning()" style="padding:8px 12px;">← Back</button>
-      <button class="btn-stop" onclick="logout()" style="padding:8px 12px;">Logout</button>
-    </div>
-    <h1 style="font-size:1.1rem; margin:0 0 4px; color:#07203f;">My Scans</h1>
-    <div id="ms-head" style="font-size:.85rem; color:#667; margin-bottom:12px;"></div>
-    <div style="display:flex; gap:8px; margin-bottom:12px;">
-      <select id="ms-course" onchange="loadMyScans()" style="flex:1; padding:8px; border:1px solid #ccc; border-radius:8px;"></select>
-      <input id="ms-date" type="date" onchange="loadMyScans()" style="padding:8px; border:1px solid #ccc; border-radius:8px;">
-    </div>
-    <div id="ms-body"></div>
-    <button class="btn-secondary" onclick="exportMyScans()" style="width:100%; padding:10px; border:1px solid #07203f; background:#fff; color:#07203f; border-radius:8px; cursor:pointer; font-weight:600; margin-top:14px;">⬇ Export CSV</button>
+  <!-- APP -->
+  <div id="app">
+    <header class="app-header">
+      <div class="top">
+        <div class="av" id="ta-avatar">TA</div>
+        <div class="who">
+          <div class="hi" id="greet">Welcome</div>
+          <div class="nm" id="ta-name">TA</div>
+        </div>
+        <div class="sync" id="sync-status"><span class="dot"></span>Synced</div>
+      </div>
+    </header>
+
+    <main id="view-home" class="view">
+      <h2 id="home-title">Overview</h2>
+      <div class="stat-grid" id="home-stats"></div>
+      <div class="panel" id="home-shift" style="margin-top:14px;"></div>
+      <h3>Quick actions</h3>
+      <div class="shortcuts" id="home-shortcuts"></div>
+      <div style="margin-top:18px; text-align:center;">
+        <button class="btn btn-danger" id="logout-btn" style="max-width:220px; margin:0 auto;">Log out</button>
+      </div>
+    </main>
+
+    <main id="view-scan" class="view hidden">
+      <h2>Scan attendance</h2>
+      <div class="row" style="align-items:flex-end; margin-bottom:10px;">
+        <div style="flex:1;">
+          <label class="muted" for="course-select" style="font-size:.85rem; display:block; margin-bottom:4px;">Course</label>
+          <select id="course-select" class="field"></select>
+        </div>
+        <button class="btn btn-ghost" id="mute-btn" title="Mute scan sound" style="flex:none; width:auto; padding:12px 14px;">🔊</button>
+      </div>
+      <video id="video" playsinline muted autoplay></video>
+      <canvas id="canvas"></canvas>
+      <div id="last-scan"></div>
+      <div class="count" id="count">Scanned this session: 0</div>
+      <div class="count" id="swarm-count" style="color:var(--green);">All TAs today: —</div>
+      <div id="cam-error"></div>
+
+      <div class="override">
+        <div class="ov-h">No QR? Mark present manually</div>
+        <div class="row">
+          <input id="override-idx" class="field" inputmode="numeric" autocomplete="off" placeholder="Student index number">
+          <button class="btn btn-green" id="override-btn" style="flex:none; width:auto; padding:13px 18px;">✓ Mark Present</button>
+        </div>
+      </div>
+
+      <div class="scan-actions">
+        <button class="btn btn-danger" id="stop-btn" style="flex:1;">■ Stop</button>
+        <button class="btn btn-blue" id="myscan-btn" style="flex:1;">📊 My Scans</button>
+      </div>
+      <div class="hint">Hold the QR steady. In Swarm Mode, the “All TAs” counter updates live as other TAs scan the same course.</div>
+    </main>
+
+    <main id="view-myscans" class="view hidden">
+      <h2>My Scans</h2>
+      <div id="ms-head" class="muted" style="font-size:.85rem; margin-bottom:10px;"></div>
+      <div class="row" style="margin-bottom:12px;">
+        <select id="ms-course" class="field" style="flex:1;"></select>
+        <input id="ms-date" type="date" class="field" style="flex:1; min-width:140px;">
+      </div>
+      <div id="ms-body"></div>
+      <button class="btn btn-blue" id="ms-export" style="margin-top:14px;">⬇ Export CSV</button>
+    </main>
+
+    <main id="view-courses" class="view hidden">
+      <h2>Scanned Courses</h2>
+      <div id="courses-body"></div>
+    </main>
+
+    <main id="view-students" class="view hidden">
+      <h2>Students</h2>
+      <select id="student-course" class="field" style="margin-bottom:10px;"></select>
+      <input id="student-search" class="search" placeholder="Search index or name…">
+      <div id="students-body"></div>
+    </main>
+
+    <main id="view-progress" class="view hidden">
+      <h2>Attendance Progress</h2>
+      <div id="progress-body"></div>
+    </main>
+
+    <main id="view-student" class="view hidden">
+      <div class="row" style="align-items:center; margin-bottom:10px;">
+        <button class="btn btn-ghost" id="student-back" style="flex:none; width:auto; padding:10px 14px;">← Back</button>
+        <h2 id="student-title" style="flex:1; margin:0 0 0 6px; font-size:1.05rem;">Student</h2>
+      </div>
+      <div id="student-detail"></div>
+    </main>
+
+    <main id="view-messages" class="view hidden">
+      <div class="row" style="margin-bottom:10px;">
+        <button class="seg active" data-msg="chats" id="seg-chats">Chats</button>
+        <button class="seg" data-msg="ann" id="seg-ann">Announcements</button>
+      </div>
+      <div id="msg-chats">
+        <div class="row" style="margin-bottom:10px;">
+          <button class="btn btn-blue" id="new-chat-btn" style="flex:none; width:auto; padding:11px 14px;">＋ New chat</button>
+          <select id="newchat-course" class="field" style="flex:1;"></select>
+          <select id="newchat-student" class="field" style="flex:1;"></select>
+        </div>
+        <div id="chats-body"></div>
+      </div>
+      <div id="msg-ann" class="hidden">
+        <div class="panel">
+          <label class="muted" style="font-size:.8rem;">Course</label>
+          <select id="ann-course" class="field" style="margin:4px 0 8px;"></select>
+          <label class="muted" style="font-size:.8rem;">Title</label>
+          <input id="ann-title" class="field" placeholder="e.g. Class moved to RBL 3" style="margin:4px 0 8px;">
+          <label class="muted" style="font-size:.8rem;">Message</label>
+          <textarea id="ann-body" class="field" rows="3" placeholder="Write your announcement…" style="margin:4px 0 10px;"></textarea>
+          <button class="btn btn-gold" id="ann-send">📢 Broadcast</button>
+        </div>
+        <div id="ann-body-list" style="margin-top:14px;"></div>
+      </div>
+      <div id="thread" class="hidden"></div>
+    </main>
+
+    <nav class="tabbar">
+      <button class="tab active" data-view="home"><span class="ti">🏠</span>Home</button>
+      <button class="tab" data-view="scan"><span class="ti">📷</span>Scan</button>
+      <button class="tab" data-view="myscans"><span class="ti">📊</span>My Scans</button>
+      <button class="tab" data-view="courses"><span class="ti">📚</span>Courses</button>
+      <button class="tab" data-view="students"><span class="ti">👥</span>Students</button>
+      <button class="tab" data-view="messages"><span class="ti">💬</span>Msgs</button>
+      <button class="tab" data-view="progress"><span class="ti">📈</span>Progress</button>
+    </nav>
   </div>
 
   <div id="flash"></div>
@@ -10183,24 +10381,25 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
 });
   </script>
   <script>
-  (function(){
+(function(){
     var SCAN_CONFIG = { firebaseUrl:"https://ta-scanner-4c48e-default-rtdb.firebaseio.com/", secret:"UgScan-9Xk2QpL7mN4vR8tB" };
     var fbBase = SCAN_CONFIG.firebaseUrl.replace(/\/$/,"");
     var ATT_BASE = "https://stu-attend-default-rtdb.firebaseio.com";
     var ATT_SECRET = "StuPort-7Hk3QmN9vR2tB8xL";
     var tas=[], courses=[], config={}, selectedTa="", selectedTaIndex="", selectedCourse="", activeYear="";
+    var pendingTaIndex="";
     var video=document.getElementById("video"), canvas=document.getElementById("canvas"), ctx=canvas.getContext("2d");
     var scanning=false, stream=null, scanCount=0;
     var lastScan={}, pending=[];
 
     function $(id){ return document.getElementById(id); }
-
+    function esc(s){ return String(s==null?"":s).replace(/[&<>"']/g,function(c){return ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]);}); }
     function extractId(txt){
       var m=String(txt).match(/\b\d{8}\b/); if(m) return m[0];
       var d=String(txt).replace(/\D/g,""); return d.length>=8? d.slice(-8): d;
     }
     function fillSelect(id, arr, placeholder){
-      var sel=$(id); if(!sel) return; sel.innerHTML='<option value="">'+placeholder+'</option>';
+      var sel=$(id); if(!sel) return; sel.innerHTML='<option value="">'+esc(placeholder)+'</option>';
       arr.forEach(function(v){ var o=document.createElement("option"); o.value=v; o.text=v; sel.appendChild(o); });
     }
     function cleanCode(c){ return String(c||"").replace(/\s+/g,"").toUpperCase(); }
@@ -10214,6 +10413,7 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
       if(Array.isArray(data)) return data;
       return Object.keys(data).map(function(k){ return data[k]; });
     }
+    function initials(name){ var p=String(name||"?").trim().split(/\s+/); return ((p[0]||"")[0]||"")+((p[1]||"")[0]||""); }
     function restoreSession(){
       try {
         var s = JSON.parse(localStorage.getItem("taSession")||"null");
@@ -10221,54 +10421,110 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
       } catch(e){}
     }
     function saveSession(){ try{ localStorage.setItem("taSession", JSON.stringify({index:selectedTaIndex, name:selectedTa, year:activeYear})); }catch(e){} }
-    function clearSession(){ try{ localStorage.removeItem("taSession"); }catch(e){} selectedTa=""; selectedTaIndex=""; }
+    function clearSession(){ try{ localStorage.removeItem("taSession"); }catch(e){} selectedTa=""; selectedTaIndex=""; pendingTaIndex=""; }
+
     async function loadConfig(){
       config = await fbGetJson(fbBase, SCAN_CONFIG.secret, "/config") || {};
       tas = Array.isArray(config.tas) ? config.tas : [];
       courses = Array.isArray(config.courses) ? config.courses : [];
       activeYear = config.activeYear || config.year || "";
-      fillSelect("course-select", courses, "Select course code");
+      fillSelect("course-select", courses, "Select course");
+      fillSelect("ms-course", courses, "All my courses");
+      fillSelect("student-course", courses, "Select course");
       restoreSession();
+      renderTaList();
       var msg = (courses.length? courses.length+" courses":"no courses") + (activeYear? " · year "+activeYear : "");
       if(!courses.length) msg += " — ask the teacher to add them in System Menu > TA & Course Setup";
       if($("config-status")) $("config-status").innerText = msg;
     }
-    async function login(){
-      var idx = ($("ta-index").value||"").replace(/\D/g,"").trim();
-      var pin = ($("ta-pin").value||"").trim();
-      if($("login-status")) $("login-status").innerText="";
-      if(!idx || !pin){ if($("login-status")) $("login-status").innerText="Enter your index number and PIN."; return false; }
-      if(!activeYear){ if($("login-status")) $("login-status").innerText="No active year set by the teacher yet."; return false; }
-      var ta = tas.find(function(t){ return String(t.index)===idx && String(t.pin)===pin && (t.active===undefined||t.active!==false); });
-      if(!ta){ if($("login-status")) $("login-status").innerText="Index or PIN not recognised for "+activeYear+"."; return false; }
-      if(ta.year !== activeYear){ if($("login-status")) $("login-status").innerText="Your TA access is for "+ta.year+", not the active year "+activeYear+"."; return false; }
-      selectedTa=ta.name; selectedTaIndex=ta.index; saveSession();
-      if($("login-status")) $("login-status").innerText="Welcome, "+ta.name+" ("+activeYear+")";
-      return true;
+
+    function renderTaList(){
+      var box=$("ta-list"); if(!box) return; box.innerHTML="";
+      var list = tas.filter(function(t){ return (t.active===undefined||t.active!==false) && (!activeYear || t.year===activeYear); });
+      if(!list.length){
+        box.innerHTML='<div class="muted" style="grid-column:1/-1;font-size:.85rem;">No TAs set up for '+(activeYear||"this year")+'. Ask the teacher to add them in System Menu &gt; TA &amp; Course Setup.</div>';
+        return;
+      }
+      list.forEach(function(t){
+        var d=document.createElement("div"); d.className="ta-chip"; d.dataset.index=t.index;
+        d.innerHTML='<div class="av">'+esc(initials(t.name))+'</div><div class="nm">'+esc(t.name)+'</div>';
+        d.onclick=function(){ selectTa(t.index); };
+        box.appendChild(d);
+      });
+      if(selectedTaIndex){
+        var pre=box.querySelector('[data-index="'+selectedTaIndex+'"]');
+        if(pre) selectTa(selectedTaIndex, true);
+      }
     }
-    async function startScanning(){
-      if(!selectedTaIndex){ if(!(await login())) return; }
+
+    function selectTa(idx, silent){
+      pendingTaIndex=idx;
+      document.querySelectorAll("#ta-list .ta-chip").forEach(function(c){ c.classList.toggle("sel", c.dataset.index===String(idx)); });
+      var wrap=$("pin-wrap"); if(wrap) wrap.classList.add("show");
+      if($("ta-pin")){ $("ta-pin").value=""; try{ $("ta-pin").focus(); }catch(e){} }
+    }
+
+    async function doLogin(){
+      var pin=($("ta-pin").value||"").trim();
+      if(!pendingTaIndex){ if($("login-status")) $("login-status").innerText="Select your name first."; return; }
+      if(!pin){ if($("login-status")) $("login-status").innerText="Enter your PIN."; return; }
+      if(!activeYear){ if($("login-status")) $("login-status").innerText="No active year set by the teacher yet."; return; }
+      var ta=tas.find(function(t){ return String(t.index)===String(pendingTaIndex) && (t.active===undefined||t.active!==false); });
+      if(!ta){ if($("login-status")) $("login-status").innerText="Account not found for "+activeYear+"."; return; }
+      if(String(ta.pin)!==String(pin)){ if($("login-status")) $("login-status").innerText="Wrong PIN. Try again."; return; }
+      if(ta.year && ta.year!==activeYear){ if($("login-status")) $("login-status").innerText="Your TA access is for "+ta.year+", not "+activeYear+"."; return; }
+      selectedTa=ta.name; selectedTaIndex=ta.index; saveSession();
+      enterApp();
+    }
+
+    function enterApp(){
+      if($("setup")) $("setup").style.display="none";
+      if($("app")) $("app").style.display="flex";
+      if($("ta-name")) $("ta-name").innerText=selectedTa;
+      if($("ta-avatar")) $("ta-avatar").innerText=initials(selectedTa);
+      var h=new Date().getHours(); var g=h<12?"Good morning":(h<17?"Good afternoon":"Good evening");
+      if($("greet")) $("greet").innerText=g+",";
+      refreshSync();
+      showView("home");
+    }
+
+    // ---------- View switching ----------
+    function showView(name){
+      ["home","scan","myscans","courses","students","progress"].forEach(function(v){
+        var el=$("view-"+v); if(el) el.classList.toggle("hidden", v!==name);
+      });
+      document.querySelectorAll(".tab").forEach(function(t){ t.classList.toggle("active", t.dataset.view===name); });
+      if(name==="myscans") loadMyScans();
+      if(name==="courses") renderCourses();
+      if(name==="students") renderStudents();
+      if(name==="progress") renderProgress();
+      if(name==="home") renderHome();
+      if(name==="scan" && !scanning) startScan();
+      if(name!=="scan" && scanning) stopScan();
+      window.scrollTo(0,0);
+    }
+
+    // ---------- Scanner ----------
+    async function startScan(){
+      if(scanning) return;
       selectedCourse=$("course-select").value;
       if(!selectedCourse){ alert("Please select your course first."); return; }
-      if($("setup")) $("setup").style.display="none";
-      if($("scanner")) $("scanner").style.display="flex";
+      scanning=true; scanCount=0;
       await initCamera();
-      scanning=true; tick();
+      if($("count")) $("count").innerText="Scanned this session: 0";
+      tick();
     }
     async function initCamera(){
       if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
-        $("cam-error").style.display="block";
-        $("cam-error").innerText="Camera not available. Open this page over HTTPS (https://) and allow camera access when prompted.";
+        if($("cam-error")){ $("cam-error").style.display="block"; $("cam-error").innerText="Camera not available. Open this page over HTTPS (https://) and allow camera access when prompted."; }
         return;
       }
       try {
         video.muted=true; video.setAttribute("playsinline",""); video.playsInline=true;
         stream = await navigator.mediaDevices.getUserMedia({ video:{ facingMode:"environment" } });
-        video.srcObject=stream;
-        await video.play();
+        video.srcObject=stream; await video.play();
       } catch(e){
-        $("cam-error").style.display="block";
-        $("cam-error").innerText="Camera error: "+(e&&e.message?e.message:e)+". Allow camera access and open via https://.";
+        if($("cam-error")){ $("cam-error").style.display="block"; $("cam-error").innerText="Camera error: "+(e&&e.message?e.message:e)+". Allow camera access and open via https://."; }
       }
     }
     function tick(){
@@ -10285,11 +10541,11 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
     function handleCode(raw){
       var id=extractId(raw); if(!id) return;
       var now=Date.now();
-      if(lastScan[id] && (now-lastScan[id]<2000)) return; // debounce frame-spam; genuine re-scans (>2s) still log
+      if(lastScan[id] && (now-lastScan[id]<2000)) return;
       lastScan[id]=now;
       beep(); flash(); scanCount++;
-      $("last-scan").innerHTML="✅ Scanned <strong>"+id+"</strong>";
-      $("count").innerText="Scanned this session: "+scanCount;
+      if($("last-scan")) $("last-scan").innerHTML="✅ Scanned <strong>"+id+"</strong>";
+      if($("count")) $("count").innerText="Scanned this session: "+scanCount;
       var rec={ studentId:id, ta:selectedTa, taIndex:selectedTaIndex, course:selectedCourse, ts:now, year:activeYear, secret:SCAN_CONFIG.secret };
       sendScan(rec);
     }
@@ -10297,18 +10553,24 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
       try {
         var r=await fetch(fbBase+"/scans.json", { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(rec) });
         if(!r.ok) throw new Error("HTTP "+r.status);
+        refreshSync();
       } catch(e){
-        pending.push(rec); savePending();
+        pending.push(rec); savePending(); refreshSync();
         var note=document.createElement("div");
         note.style.cssText="font-size:.8rem;color:#b10d15;text-align:center;margin-top:6px;";
         note.innerText="Offline — queued, will send when back online.";
-        $("last-scan").appendChild(note);
+        if($("last-scan")) $("last-scan").appendChild(note);
       }
+    }
+    function stopScan(){
+      scanning=false;
+      if(stream){ stream.getTracks().forEach(function(t){ t.stop(); }); stream=null; }
+      if($("video")) $("video").srcObject=null;
     }
     function savePending(){ try{ localStorage.setItem("pendingScans", JSON.stringify(pending)); }catch(e){} }
     function loadPending(){ try{ pending=JSON.parse(localStorage.getItem("pendingScans")||"[]"); }catch(e){ pending=[]; } }
     async function flushPending(){
-      if(!pending.length) return;
+      if(!pending.length){ refreshSync(); return; }
       var still=[];
       for(var i=0;i<pending.length;i++){
         try {
@@ -10316,8 +10578,8 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
           if(!r.ok) throw new Error("HTTP "+r.status);
         } catch(e){ still.push(pending[i]); }
       }
-      pending=still; savePending();
-      if(!pending.length && scanning){ var n=document.createElement("div"); n.style.cssText="font-size:.8rem;color:#0a7d2b;text-align:center;margin-top:6px;"; n.innerText="Queued scans sent."; $("last-scan").appendChild(n); }
+      pending=still; savePending(); refreshSync();
+      if(!pending.length && scanning){ var n=document.createElement("div"); n.style.cssText="font-size:.8rem;color:#0a7d2b;text-align:center;margin-top:6px;"; n.innerText="Queued scans sent."; if($("last-scan")) $("last-scan").appendChild(n); }
     }
     function beep(){
       try {
@@ -10329,21 +10591,61 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
         o.start(); o.stop(ac.currentTime+0.15);
       } catch(e){}
     }
-    function flash(){ var f=$("flash"); f.style.opacity="1"; setTimeout(function(){ f.style.opacity="0"; }, 200); }
-    function stopScanning(){
-      scanning=false;
-      if(stream){ stream.getTracks().forEach(function(t){ t.stop(); }); }
-      $("scanner").style.display="none"; $("setup").style.display="flex";
+    function flash(){ var f=$("flash"); if(f){ f.style.opacity="1"; setTimeout(function(){ f.style.opacity="0"; }, 200); } }
+    function refreshSync(){
+      var el=$("sync-status"); if(!el) return;
+      var online=navigator.onLine;
+      if(pending.length){
+        el.innerHTML='<span class="dot" style="background:#ffd166;"></span>'+pending.length+' pending';
+      } else if(online){
+        el.innerHTML='<span class="dot"></span>Synced';
+      } else {
+        el.innerHTML='<span class="dot" style="background:#ffd166;"></span>Offline';
+      }
     }
 
-    // ---------- My Scans (year-scoped, full class attendance) ----------
-    async function openMyScans(){
-      if(!selectedTaIndex){ if(!(await login())){ if($("setup")) $("setup").style.display="flex"; return; } }
-      if($("setup")) $("setup").style.display="none";
-      if($("scanner")) $("scanner").style.display="none";
-      if($("myscans")) $("myscans").style.display="flex";
-      renderMyScans();
+    // ---------- Home ----------
+    function renderHome(){
+      var stats=$("home-stats"); if(stats){
+        stats.innerHTML=
+          statCard("Scanned today", scanCountToday(), "")+
+          statCard("Courses", courses.length, "b")+
+          statCard("Pending", pending.length, pending.length?"a":"")+
+          statCard("Active year", activeYear||"—", "b");
+      }
+      var shift=$("home-shift"); if(shift){
+        shift.innerHTML='<div style="font-weight:700;color:var(--ug-blue);margin-bottom:6px;">🔄 Shift status</div>'+
+          '<div class="muted" style="font-size:.85rem;">'+syncLine()+'</div>'+
+          '<div class="muted" style="font-size:.85rem;margin-top:4px;">'+pendingLine()+'</div>';
+      }
+      var sc=$("home-shortcuts"); if(sc){
+        sc.innerHTML="";
+        [["📷","Start Scanning",function(){ showView("scan"); }],
+         ["📊","My Scans",function(){ showView("myscans"); }],
+         ["📚","Courses",function(){ showView("courses"); }],
+         ["👥","Students",function(){ showView("students"); }],
+         ["📈","Progress",function(){ showView("progress"); }],
+         ["🚪","Log out",function(){ logout(); }]
+        ].forEach(function(s){
+          var d=document.createElement("div"); d.className="sc"; d.onclick=s[2];
+          d.innerHTML='<div class="ic">'+s[0]+'</div><div class="lb">'+s[1]+'</div>';
+          sc.appendChild(d);
+        });
+      }
     }
+    function statCard(k,v,cls){
+      return '<div class="stat '+(cls||"")+'"><div class="k">'+esc(k)+'</div><div class="v">'+esc(v)+'</div></div>';
+    }
+    function scanCountToday(){
+      var d=new Date(); var start=new Date(d.getFullYear(),d.getMonth(),d.getDate()).getTime();
+      return (lastScanToday||0);
+    }
+    var lastScanToday=0;
+    function syncLine(){ return navigator.onLine? "Online — scans upload live." : "Offline — scans are queued on this device."; }
+    function pendingLine(){ return pending.length? pending.length+" scan(s) waiting to upload." : "All scans uploaded."; }
+
+    // ---------- My Scans (responsive) ----------
+    async function openMyScans(){ showView("myscans"); }
     async function renderMyScans(){
       var ta = tas.find(function(t){ return String(t.index)===String(selectedTaIndex); }) || {};
       var list = (Array.isArray(ta.courses)&&ta.courses.length)? ta.courses : courses;
@@ -10364,12 +10666,16 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
       }).filter(Boolean);
     }
     function statusOf(m){ if(!m) return "Absent"; if(m.late) return "Late"; return "Present"; }
+    function dayRange(date){
+      var dayStart = date ? new Date(date+"T00:00:00").getTime() : 0;
+      var dayEnd = dayStart ? dayStart+86400000 : Date.now();
+      return [dayStart, dayEnd];
+    }
     async function loadMyScans(){
       var box=$("ms-body"); if(box) box.innerHTML='<div style="padding:20px;color:#667;">Loading…</div>';
       var course=$("ms-course")? $("ms-course").value : "";
       var date=$("ms-date")? $("ms-date").value : "";
-      var dayStart = date ? new Date(date+"T00:00:00").getTime() : 0;
-      var dayEnd = dayStart ? dayStart+86400000 : Date.now();
+      var rg=dayRange(date); var dayStart=rg[0], dayEnd=rg[1];
       var all = normArr(await fbGetJson(fbBase, SCAN_CONFIG.secret, "/scans"));
       var scans = all.filter(function(m){
         return m && m.year===activeYear && (!course || cleanCode(m.course)===cleanCode(course)) && m.ts>=dayStart && m.ts<dayEnd;
@@ -10380,31 +10686,31 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
       roster.forEach(function(id){ var m=scanned[id]; if(!m){ absent++; } else if(m.late){ late++; } else { present++; } });
       var pct = roster.length ? Math.round((present/roster.length)*100) : 0;
       var html="";
-      html += '<div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;">'
-            + '<div style="flex:1;min-width:90px;background:#eef3f8;border-radius:10px;padding:10px;"><div style="font-size:.78rem;color:#667;">Present</div><div style="font-size:1.4rem;font-weight:600;color:#0a7d2b;">'+present+'</div></div>'
-            + '<div style="flex:1;min-width:90px;background:#eef3f8;border-radius:10px;padding:10px;"><div style="font-size:.78rem;color:#667;">Late</div><div style="font-size:1.4rem;font-weight:600;color:#b8860b;">'+late+'</div></div>'
-            + '<div style="flex:1;min-width:90px;background:#eef3f8;border-radius:10px;padding:10px;"><div style="font-size:.78rem;color:#667;">Absent</div><div style="font-size:1.4rem;font-weight:600;color:#b10d15;">'+absent+'</div></div>'
-            + '<div style="flex:1;min-width:90px;background:#eef3f8;border-radius:10px;padding:10px;"><div style="font-size:.78rem;color:#667;">Rate</div><div style="font-size:1.4rem;font-weight:600;color:#07203f;">'+pct+'%</div></div>'
+      html += '<div class="stat-grid" style="margin-bottom:14px;">'
+            + statCard("Present", present, "g")
+            + statCard("Late", late, "a")
+            + statCard("Absent", absent, "r")
+            + statCard("Rate", pct+"%", "b")
             + '</div>';
       if(course && roster.length){
-        html += '<div style="font-weight:600;color:#07203f;margin:6px 0 8px;">Class attendance — '+course+'</div>';
-        html += '<div style="border:1px solid #e3e3e3;border-radius:10px;overflow:hidden;">';
+        html += '<div style="font-weight:600;color:var(--ug-blue);margin:6px 0 8px;">Class attendance — '+esc(course)+'</div>';
+        html += '<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Student ID</th><th>Status</th></tr></thead><tbody>';
         roster.forEach(function(id){
-          var m=scanned[id]; var st=statusOf(m); var col = st==="Present"?"#0a7d2b":(st==="Late"?"#b8860b":"#b10d15");
-          html += '<div style="display:flex;justify-content:space-between;padding:8px 12px;border-bottom:1px solid #f0f0f0;font-size:.86rem;"><span>'+id+'</span><span style="color:'+col+';font-weight:600;">'+st+'</span></div>';
+          var m=scanned[id]; var st=statusOf(m); var cls = st==="Present"?"g":(st==="Late"?"a":"r");
+          html += '<tr><td>'+esc(id)+'</td><td><span class="pill '+cls+'">'+st+'</span></td></tr>';
         });
-        html += '</div>';
+        html += '</tbody></table></div>';
       } else if(course && !roster.length){
-        html += '<div style="color:#b10d15;font-size:.85rem;padding:8px 0;">No roster found for '+course+'. Add students in the teacher system or set rosters in TA setup.</div>';
+        html += '<div style="color:var(--red);font-size:.85rem;padding:8px 0;">No roster found for '+esc(course)+'. Add students in the teacher system or set rosters in TA setup.</div>';
       }
       var mine = scans.slice().sort(function(a,b){ return (b.ts||0)-(a.ts||0); }).slice(0,30);
-      html += '<div style="font-weight:600;color:#07203f;margin:16px 0 8px;">My scans this day ('+mine.length+')</div>';
-      if(!mine.length){ html += '<div style="color:#667;font-size:.85rem;">No scans logged yet for this day.</div>'; }
+      html += '<div style="font-weight:600;color:var(--ug-blue);margin:16px 0 8px;">My scans this day ('+mine.length+')</div>';
+      if(!mine.length){ html += '<div class="muted" style="font-size:.85rem;">No scans logged yet for this day.</div>'; }
       else {
-        html += '<div style="border:1px solid #e3e3e3;border-radius:10px;overflow:hidden;">';
+        html += '<div class="list">';
         mine.forEach(function(m){
           var tt = new Date(m.ts); var tstr = (tt.getHours()+"").padStart(2,"0")+":"+(tt.getMinutes()+"").padStart(2,"0");
-          html += '<div style="display:flex;justify-content:space-between;padding:7px 12px;border-bottom:1px solid #f0f0f0;font-size:.84rem;"><span>'+m.studentId+' <span style="color:#99a;">'+m.course+'</span></span><span style="color:#667;">'+tstr+'</span></div>';
+          html += '<div class="it"><div class="ic">🕒</div><div class="tx"><div class="t">'+esc(m.studentId)+'</div><div class="s">'+esc(m.course)+' · '+tstr+'</div></div></div>';
         });
         html += '</div>';
       }
@@ -10413,8 +10719,7 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
     function exportMyScans(){
       var course=$("ms-course")? $("ms-course").value : "";
       var date=$("ms-date")? $("ms-date").value : "";
-      var dayStart = date ? new Date(date+"T00:00:00").getTime() : 0;
-      var dayEnd = dayStart ? dayStart+86400000 : Date.now();
+      var rg=dayRange(date); var dayStart=rg[0], dayEnd=rg[1];
       fbGetJson(fbBase, SCAN_CONFIG.secret, "/scans").then(function(all){
         var scans = normArr(all).filter(function(m){ return m && m.year===activeYear && (!course || cleanCode(m.course)===cleanCode(course)) && m.ts>=dayStart && m.ts<dayEnd; });
         var scanned={}; scans.forEach(function(m){ scanned[m.studentId]=m; });
@@ -10428,14 +10733,161 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
         setTimeout(function(){ URL.revokeObjectURL(url); }, 1000);
       });
     }
-    function logout(){ clearSession(); if($("setup")) $("setup").style.display="flex"; if($("myscans")) $("myscans").style.display="none"; if($("ta-index")) $("ta-index").value=""; if($("ta-pin")) $("ta-pin").value=""; if($("login-status")) $("login-status").innerText=""; }
+
+    // ---------- Courses ----------
+    async function renderCourses(){
+      var box=$("courses-body"); if(!box) return;
+      box.innerHTML='<div style="padding:14px;color:#667;">Loading…</div>';
+      var ta = tas.find(function(t){ return String(t.index)===String(selectedTaIndex); }) || {};
+      var list = (Array.isArray(ta.courses)&&ta.courses.length)? ta.courses : courses;
+      if(!list.length){ box.innerHTML='<div class="muted" style="font-size:.85rem;">No courses assigned.</div>'; return; }
+      var date=new Date().toISOString().slice(0,10); var rg=dayRange(date);
+      var all = normArr(await fbGetJson(fbBase, SCAN_CONFIG.secret, "/scans"));
+      var scans = all.filter(function(m){ return m && m.year===activeYear && m.ts>=rg[0] && m.ts<rg[1]; });
+      var html='<div class="list">';
+      list.forEach(function(c){
+        var cs=scans.filter(function(m){ return cleanCode(m.course)===cleanCode(c); });
+        var scanned={}; cs.forEach(function(m){ scanned[m.studentId]=m; });
+        var roster=[]; // roster fetched lazily on tap
+        var cnt=cs.length;
+        html += '<div class="it" data-course="'+esc(c)+'" style="cursor:pointer;"><div class="ic">📘</div>'+
+          '<div class="tx"><div class="t">'+esc(c)+'</div><div class="s">'+cnt+' scan(s) today</div></div>'+
+          '<div class="ar">›</div></div>';
+      });
+      html+='</div>';
+      box.innerHTML=html;
+      box.querySelectorAll(".it").forEach(function(it){
+        it.onclick=function(){
+          var c=it.dataset.course;
+          if($("ms-course")){ $("ms-course").value=c; }
+          if($("ms-date")){ $("ms-date").value=date; }
+          showView("myscans"); loadMyScans();
+        };
+      });
+    }
+
+    // ---------- Students ----------
+    async function renderStudents(){
+      var box=$("students-body"); if(!box) return;
+      var c=$("student-course")? $("student-course").value : "";
+      if(!c){ box.innerHTML='<div class="muted" style="font-size:.85rem;">Select a course above.</div>'; return; }
+      box.innerHTML='<div style="padding:14px;color:#667;">Loading…</div>';
+      var date=new Date().toISOString().slice(0,10); var rg=dayRange(date);
+      var all = normArr(await fbGetJson(fbBase, SCAN_CONFIG.secret, "/scans"));
+      var scans = all.filter(function(m){ return m && m.year===activeYear && cleanCode(m.course)===cleanCode(c) && m.ts>=rg[0] && m.ts<rg[1]; });
+      var scanned={}; scans.forEach(function(m){ scanned[m.studentId]=m; });
+      var roster = await getRoster(c);
+      if(!roster.length){ box.innerHTML='<div style="color:var(--red);font-size:.85rem;">No roster found for '+esc(c)+'.</div>'; return; }
+      drawStudentList(roster, scanned, "");
+    }
+    function drawStudentList(roster, scanned, q){
+      var box=$("students-body"); if(!box) return;
+      q=(q||"").toLowerCase();
+      var html='<div class="list">';
+      roster.forEach(function(id){
+        if(q && id.toLowerCase().indexOf(q)<0) return;
+        var m=scanned[id]; var st=statusOf(m); var cls = st==="Present"?"g":(st==="Late"?"a":"r");
+        html += '<div class="it"><div class="ic">🧑‍🎓</div><div class="tx"><div class="t">'+esc(id)+'</div></div>'+
+          '<span class="pill '+cls+'">'+st+'</span></div>';
+      });
+      html+='</div>';
+      box.innerHTML=html;
+    }
+
+    // ---------- Progress ----------
+    async function renderProgress(){
+      var box=$("progress-body"); if(!box) return;
+      box.innerHTML='<div style="padding:14px;color:#667;">Loading…</div>';
+      var date=new Date().toISOString().slice(0,10); var rg=dayRange(date);
+      var all = normArr(await fbGetJson(fbBase, SCAN_CONFIG.secret, "/scans"));
+      var scans = all.filter(function(m){ return m && m.year===activeYear && m.ts>=rg[0] && m.ts<rg[1]; });
+      var byCourse={}; scans.forEach(function(m){ (byCourse[m.course]=byCourse[m.course]||[]).push(m); });
+      var totalP=0, totalR=0;
+      var html='<h3>Per-course today</h3>';
+      var keys=Object.keys(byCourse);
+      if(!keys.length){ html+='<div class="muted" style="font-size:.85rem;">No scans recorded for '+esc(date)+' yet.</div>'; }
+      else {
+        html+='<div class="list">';
+        keys.forEach(function(c){
+          var cs=byCourse[c]; var cnt=cs.length;
+          totalP+=cnt; totalR+=1;
+          html += '<div class="it"><div class="ic">📘</div><div class="tx"><div class="t">'+esc(c)+'</div><div class="s">'+cnt+' present today</div></div>'+
+            '<span class="pill b">'+cnt+'</span></div>';
+        });
+        html+='</div>';
+      }
+      // Per-TA totals (leaderboard)
+      var byTa={}; all.forEach(function(m){ if(m && m.year===activeYear && m.taIndex){ (byTa[m.taIndex]=byTa[m.taIndex]||0); byTa[m.taIndex]++; } });
+      var taKeys=Object.keys(byTa).sort(function(a,b){ return byTa[b]-byTa[a]; });
+      html+='<h3>Scan totals by TA (this year)</h3>';
+      if(!taKeys.length){ html+='<div class="muted" style="font-size:.85rem;">No scans recorded yet.</div>'; }
+      else {
+        var max=byTa[taKeys[0]]||1;
+        html+='<div class="panel" style="padding:10px 12px;">';
+        taKeys.forEach(function(idx){
+          var t=tas.find(function(x){return String(x.index)===String(idx);});
+          var nm=t? t.name : idx; var v=byTa[idx];
+          var w=Math.max(4,Math.round((v/max)*100));
+          html += '<div style="margin:8px 0;"><div style="display:flex;justify-content:space-between;font-size:.82rem;"><span>'+esc(nm)+'</span><span>'+v+'</span></div>'+
+            '<div style="height:8px;background:#eef2f8;border-radius:6px;overflow:hidden;"><div style="height:100%;width:'+w+'%;background:linear-gradient(90deg,var(--ug-gold),var(--ug-gold-d));border-radius:6px;"></div></div></div>';
+        });
+        html+='</div>';
+      }
+      // Sync summary
+      html+='<h3>Sync</h3><div class="panel" style="font-size:.85rem;">'+syncLine()+'<br>'+pendingLine()+'</div>';
+      box.innerHTML=html;
+    }
+
+    function logout(){
+      clearSession();
+      stopScan();
+      if($("app")) $("app").style.display="none";
+      if($("setup")) $("setup").style.display="flex";
+      if($("pin-wrap")) $("pin-wrap").classList.remove("show");
+      if($("ta-pin")) $("ta-pin").value="";
+      if($("login-status")) $("login-status").innerText="";
+      renderTaList();
+    }
+
+    // ---------- Wiring ----------
+    function wire(){
+      var enter=$("enter-btn"); if(enter) enter.onclick=doLogin;
+      var sw=$("switch-btn"); if(sw) sw.onclick=function(){
+        pendingTaIndex=""; document.querySelectorAll("#ta-list .ta-chip").forEach(function(c){ c.classList.remove("sel"); });
+        if($("pin-wrap")) $("pin-wrap").classList.remove("show");
+        if($("ta-pin")) $("ta-pin").value="";
+      };
+      var pin=$("ta-pin"); if(pin) pin.addEventListener("keydown", function(e){ if(e.key==="Enter") doLogin(); });
+      var stop=$("stop-btn"); if(stop) stop.onclick=function(){ stopScan(); showView("home"); renderHome(); };
+      var msb=$("myscan-btn"); if(msb) msb.onclick=function(){ showView("myscans"); };
+      var exp=$("ms-export"); if(exp) exp.onclick=exportMyScans;
+      var lob=$("logout-btn"); if(lob) lob.onclick=logout;
+      var msd=$("ms-date"); if(msd) msd.addEventListener("change", loadMyScans);
+      var msc=$("ms-course"); if(msc) msc.addEventListener("change", loadMyScans);
+      var cs=$("course-select"); if(cs) cs.addEventListener("change", function(){ selectedCourse=cs.value; if(!scanning && $("view-scan") && !$("view-scan").classList.contains("hidden")) startScan(); });
+      var sc=$("student-course"); if(sc) sc.addEventListener("change", renderStudents);
+      var ss=$("student-search"); if(ss) ss.addEventListener("input", function(){
+        var c=$("student-course")? $("student-course").value : ""; if(!c) return;
+        // re-filter without refetch
+        var date=new Date().toISOString().slice(0,10); var rg=dayRange(date);
+        fbGetJson(fbBase, SCAN_CONFIG.secret, "/scans").then(function(all){
+          var scans=normArr(all).filter(function(m){ return m && m.year===activeYear && cleanCode(m.course)===cleanCode(c) && m.ts>=rg[0] && m.ts<rg[1]; });
+          var scanned={}; scans.forEach(function(m){ scanned[m.studentId]=m; });
+          drawStudentList(lastRoster, scanned, ss.value);
+        });
+      });
+      document.querySelectorAll(".tab").forEach(function(t){ t.onclick=function(){ showView(t.dataset.view); }; });
+    }
+    var lastRoster=[];
 
     loadPending();
     loadConfig();
+    wire();
     window.addEventListener("online", flushPending);
     if(navigator.onLine) flushPending();
-    window.startScanning = startScanning;
-    window.stopScanning = stopScanning;
+    window.startScan=startScan; window.stopScan=stopScan; window.doLogin=doLogin;
+    window.showView=showView; window.logout=logout; window.loadMyScans=loadMyScans;
+    window.exportMyScans=exportMyScans; window.openMyScans=openMyScans; window.selectTa=selectTa;
   })();
   </script>
 </body>
